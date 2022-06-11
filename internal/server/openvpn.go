@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"net/http"
 	"strings"
+
+	"github.com/qdm12/gluetun/internal/models"
 )
 
 func newOpenvpnHandler(ctx context.Context, looper VPNLooper,
@@ -40,6 +42,20 @@ func (h *openvpnHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodGet:
 			h.getSettings(w)
+		default:
+			http.Error(w, "", http.StatusNotFound)
+		}
+	case "/settings/server":
+		switch r.Method {
+		case http.MethodPut:
+			h.setServer(w, r)
+		default:
+			http.Error(w, "", http.StatusNotFound)
+		}
+	case "/servers":
+		switch r.Method {
+		case http.MethodGet:
+			h.getServers(w)
 		default:
 			http.Error(w, "", http.StatusNotFound)
 		}
@@ -111,6 +127,45 @@ func (h *openvpnHandler) getPortForwarded(w http.ResponseWriter) {
 	if err := encoder.Encode(data); err != nil {
 		h.warner.Warn(err.Error())
 		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+}
+
+func (h *openvpnHandler) getServers(w http.ResponseWriter) {
+	servers, err := h.looper.GetServerList()
+	if err != nil {
+		h.warner.Warn(err.Error())
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	encoder := json.NewEncoder(w)
+	if err := encoder.Encode(servers); err != nil {
+		h.warner.Warn(err.Error())
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+}
+
+func (h *openvpnHandler) setServer(w http.ResponseWriter, r *http.Request) {
+	decoder := json.NewDecoder(r.Body)
+	var data models.Server
+	if err := decoder.Decode(&data); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	vpnSettings := h.looper.GetSettings()
+	settings := vpnSettings
+	settings.Provider.ServerSelection.VPN = data.VPN
+	settings.Provider.ServerSelection.Countries = []string{data.Country}
+	settings.Provider.ServerSelection.Regions = []string{data.Region}
+	settings.Provider.ServerSelection.Cities = []string{data.City}
+	settings.Provider.ServerSelection.Hostnames = []string{data.Hostname}
+	outcome := h.looper.SetSettings(h.ctx, settings)
+	encoder := json.NewEncoder(w)
+	if err := encoder.Encode(outcomeWrapper{Outcome: outcome}); err != nil {
+		h.warner.Warn(err.Error())
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
 }

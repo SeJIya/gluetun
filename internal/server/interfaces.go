@@ -13,6 +13,8 @@ type VPNLooper interface {
 	ApplyStatus(ctx context.Context, status models.LoopStatus) (
 		outcome string, err error)
 	GetSettings() (settings settings.VPN)
+	SetSettings(ctx context.Context, vpn settings.VPN) (outcome string)
+	GetServerList() (servers []models.Server, err error)
 }
 
 type DNSLoop interface {
