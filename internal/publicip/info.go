@@ -20,9 +20,8 @@ var (
 
 func Info(ctx context.Context, client *http.Client, ip net.IP) ( //nolint:interfacer
 	result models.IPInfoData, err error) {
-	const baseURL = "https://ipinfo.io/"
-	url := baseURL + ip.String()
-	request, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	const baseURL = "https://api.myip.com/"
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, baseURL, nil)
 	if err != nil {
 		return result, err
 	}
@@ -47,7 +46,7 @@ func Info(ctx context.Context, client *http.Client, ip net.IP) ( //nolint:interf
 		return result, err
 	}
 
-	countryCode := strings.ToLower(result.Country)
+	countryCode := strings.ToLower(result.CountryCode)
 	country, ok := constants.CountryCodes()[countryCode]
 	if ok {
 		result.Country = country
